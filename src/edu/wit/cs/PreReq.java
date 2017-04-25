@@ -11,7 +11,9 @@ import java.util.TreeMap;
 import org.jacop.constraints.And;
 import org.jacop.constraints.Distance;
 import org.jacop.constraints.LinearInt;
+import org.jacop.constraints.Not;
 import org.jacop.constraints.Or;
+import org.jacop.constraints.OrBool;
 import org.jacop.constraints.PrimitiveConstraint;
 import org.jacop.constraints.Reified;
 import org.jacop.constraints.SumInt;
@@ -21,6 +23,7 @@ import org.jacop.constraints.XlteqC;
 import org.jacop.constraints.XlteqY;
 import org.jacop.constraints.XneqY;
 import org.jacop.core.BooleanVar;
+import org.jacop.core.BoundDomain;
 import org.jacop.core.Domain;
 import org.jacop.core.IntVar;
 import org.jacop.core.Store;
@@ -131,7 +134,7 @@ public class PreReq {
 	
 	public static void main(String[] args) {
 		
-		final Integer MAX_TIME = 5;
+		final Integer MAX_TIME = 1;
 //		final Integer MAX_TIME = null;
 		
 		//
@@ -275,12 +278,47 @@ public class PreReq {
 			}
 		}
 		
-		// TODO: no class all year
+		// no class all year
 		if (NO_ALL_CLASS_YEAR) {
-			// reify assignment of coop's per semester (coop1?=1, coop1?=2...)
-			// reify vars as semester courses (courses1?, courses2?, ...)
-			// reify legal semester as (not courses OR coop)
-			// impose (not (fall AND spring AND summer))
+			final BooleanVar bT = new BooleanVar(store, new BoundDomain(1, 1));
+			
+			for (int t=0; t<MAX_SEMESTERS; t++) {
+				final int semester = (START_SEMESTER + t) % 3;
+				
+				if (semester==0 && (t+2)<MAX_SEMESTERS) {
+					final BooleanVar[] legalVar = new BooleanVar[3];
+					
+					for (int i=0; i<3; i++) {
+						final int s = t + i;
+						
+						//
+						
+						final List<String> pegs = peg.containsKey(s)?peg.get(s):null;
+						
+						final int numNonPegged = Course.OFFERINGS.size() - (pegs==null?0:pegs.size());
+						final PrimitiveConstraint[] cSem = new PrimitiveConstraint[numNonPegged];
+						int j = 0;
+						for (Course c : Course.OFFERINGS.values()) {
+							if (pegs==null || !pegs.contains(c.name)) {
+								cSem[j++] = new XeqC(varMap.get(c.name), s);
+							}
+						}
+						
+						//
+						
+						final BooleanVar b = new BooleanVar(store, String.format("ACY_%d_legal", s));
+						store.impose(new Reified(
+							new Or( // either...
+								new Or(new XeqC(varMap.get(COOP_1), s), new XeqC(varMap.get(COOP_2), s)), // co-op 
+								new Not(new Or(cSem))),  // or no courses
+						b));
+						
+						legalVar[i] = b;
+					}
+					
+					store.impose(new OrBool(legalVar, bT));
+				}
+			}
 		}
 		
 		// deviation from tracking sheet
