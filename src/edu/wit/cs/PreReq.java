@@ -8,11 +8,16 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
 
+import org.jacop.constraints.And;
+import org.jacop.constraints.Distance;
 import org.jacop.constraints.LinearInt;
+import org.jacop.constraints.Or;
 import org.jacop.constraints.PrimitiveConstraint;
 import org.jacop.constraints.Reified;
+import org.jacop.constraints.SumInt;
 import org.jacop.constraints.XeqC;
 import org.jacop.constraints.XltY;
+import org.jacop.constraints.XlteqC;
 import org.jacop.constraints.XlteqY;
 import org.jacop.constraints.XneqY;
 import org.jacop.core.BooleanVar;
@@ -76,45 +81,45 @@ public class PreReq {
 	}
 	
 	private static void loadBCOS(String coop1, String coop2, int coopCredits, List<String[]> equiv) {
-		Course.offer("COMP1000", 4, new boolean[] {true, true, false});
-		Course.offer("MATH2300", 4, new boolean[] {true, true, true});
-		Course.offer("MATH1750", 4, new boolean[] {true, true, false});
-		Course.offer("COMP1050", 4, new boolean[] {true, true, false}, new String[] {"COMP1000"});
-		Course.offer("MATH1850", 4, new boolean[] {true, true, true}, new String[] {"MATH1750"});
-		Course.offer("COMP1200", 4, new boolean[] {true, true, false}, new String[] {"COMP1000", "MATH2300"});
-		Course.offer("COMP2000", 4, new boolean[] {true, true, false}, new String[] {"COMP1050", "MATH2300"});
-		Course.offer("COMP2100", 4, new boolean[] {true, true, false}, new String[] {"COMP1050"});
-		Course.offer("MATH2860", 4, new boolean[] {true, true, false}, new String[] {"MATH1850"});
-		Course.offer("COMP2350", 4, new boolean[] {true, true, false}, new String[] {"COMP1050", "MATH2300"});
-		Course.offer("COMP2650", 4, new boolean[] {true, true, false}, new String[] {"COMP1050", "MATH2300"});
-		Course.offer("MATH2100", 4, new boolean[] {false, true, true}, new String[] {"MATH1850"});
-		Course.offer("COMP3400", 4, new boolean[] {true, false, false}, new String[] {"COMP2000", "COMP2350"});
-		Course.offer("COMP3350", 4, new boolean[] {false, false, true}, new String[] {"COMP2000", "COMP2350"});
-		Course.offer("COMP3450", 4, new boolean[] {false, false, true}, new String[] {"COMP2000", "COMP2350"});
-		Course.offer("COMP4960", 4, new boolean[] {false, true, false}, new String[] {"COMP2650", "COMP2000", "COMP2350"});
-		Course.offer("COMP5500", 4, new boolean[] {false, false, true}, new String[] {"COMP4960"});
+		Course.offer("COMP1000", 4, 0, new boolean[] {true, true, false});
+		Course.offer("MATH2300", 4, 0, new boolean[] {true, true, true});
+		Course.offer("MATH1750", 4, 0, new boolean[] {true, true, false});
+		Course.offer("COMP1050", 4, 1, new boolean[] {true, true, false}, new String[] {"COMP1000"});
+		Course.offer("MATH1850", 4, 1, new boolean[] {true, true, true}, new String[] {"MATH1750"});
+		Course.offer("COMP1200", 4, 1, new boolean[] {true, true, false}, new String[] {"COMP1000", "MATH2300"});
+		Course.offer("COMP2000", 4, 3, new boolean[] {true, true, false}, new String[] {"COMP1050", "MATH2300"});
+		Course.offer("COMP2100", 4, 3, new boolean[] {true, true, false}, new String[] {"COMP1050"});
+		Course.offer("MATH2860", 4, 3, new boolean[] {true, true, false}, new String[] {"MATH1850"});
+		Course.offer("COMP2350", 4, 4, new boolean[] {true, true, false}, new String[] {"COMP1050", "MATH2300"});
+		Course.offer("COMP2650", 4, 4, new boolean[] {true, true, false}, new String[] {"COMP1050", "MATH2300"});
+		Course.offer("MATH2100", 4, 4, new boolean[] {false, true, true}, new String[] {"MATH1850"});
+		Course.offer("COMP3400", 4, 6, new boolean[] {true, false, false}, new String[] {"COMP2000", "COMP2350"});
+		Course.offer("COMP3350", 4, 8, new boolean[] {false, false, true}, new String[] {"COMP2000", "COMP2350"});
+		Course.offer("COMP3450", 4, 8, new boolean[] {false, false, true}, new String[] {"COMP2000", "COMP2350"});
+		Course.offer("COMP4960", 4, 10, new boolean[] {false, true, false}, new String[] {"COMP2650", "COMP2000", "COMP2350"});
+		Course.offer("COMP5500", 4, 11, new boolean[] {false, false, true}, new String[] {"COMP4960"});
 		
-		Course.offer("ENGLISH1", 4, new boolean[] {true, true, true});
-		Course.offer("ENGLISH2", 4, new boolean[] {true, true, true}, new String[] {"ENGLISH1"});
-		Course.offer("HUSS-E01", 4, new boolean[] {true, true, true}, new String[] {"ENGLISH2"});
-		Course.offer("HUSS-E02", 4, new boolean[] {true, true, true}, new String[] {"ENGLISH2"});
-		Course.offer("HUSS-E03", 4, new boolean[] {true, true, true}, new String[] {"ENGLISH2"});
-		Course.offer("HUSS-E04", 4, new boolean[] {true, true, true}, new String[] {"ENGLISH2"});
-		Course.offer("HUSS-E05", 4, new boolean[] {true, true, true}, new String[] {"ENGLISH2"});
+		Course.offer("ENGLISH1", 4, 0, new boolean[] {true, true, true});
+		Course.offer("ENGLISH2", 4, 1, new boolean[] {true, true, true}, new String[] {"ENGLISH1"});
+		Course.offer("HUSS-E01", 4, 3, new boolean[] {true, true, true}, new String[] {"ENGLISH2"});
+		Course.offer("HUSS-E02", 4, 4, new boolean[] {true, true, true}, new String[] {"ENGLISH2"});
+		Course.offer("HUSS-E03", 4, 6, new boolean[] {true, true, true}, new String[] {"ENGLISH2"});
+		Course.offer("HUSS-E04", 4, 10, new boolean[] {true, true, true}, new String[] {"ENGLISH2"});
+		Course.offer("HUSS-E05", 4, 11, new boolean[] {true, true, true}, new String[] {"ENGLISH2"});
 		
-		Course.offer("MSCI-E01", 4, new boolean[] {true, true, true}, new String[] {"MATH1850"});
-		Course.offer("MSCI-E02", 4, new boolean[] {true, true, true}, new String[] {"MATH1850"});
-		Course.offer("MSCI-E03", 4, new boolean[] {true, true, true}, new String[] {"MATH1850"});
+		Course.offer("MSCI-E01", 4, 6, new boolean[] {true, true, true}, new String[] {"MATH1850"});
+		Course.offer("MSCI-E02", 4, 8, new boolean[] {true, true, true}, new String[] {"MATH1850"});
+		Course.offer("MSCI-E03", 4, 11, new boolean[] {true, true, true}, new String[] {"MATH1850"});
 		
-		Course.offer("COMP-E01", 4, new boolean[] {true, true, true}, new String[] {"COMP1050"});
-		Course.offer("COMP-E02", 4, new boolean[] {true, true, true}, new String[] {"COMP1050"});
-		Course.offer("COMP-E03", 4, new boolean[] {true, true, true}, new String[] {"COMP1050"});
+		Course.offer("COMP-E01", 4, 6, new boolean[] {true, true, true}, new String[] {"COMP1050"});
+		Course.offer("COMP-E02", 4, 8, new boolean[] {true, true, true}, new String[] {"COMP1050"});
+		Course.offer("COMP-E03", 4, 10, new boolean[] {true, true, true}, new String[] {"COMP1050"});
 		
-		Course.offer("ADCS-E01", 4, new boolean[] {true, true, true}, new String[] {"COMP2000", "COMP2350"});
-		Course.offer("ADCS-E02", 4, new boolean[] {true, true, true}, new String[] {"COMP2000", "COMP2350"});
+		Course.offer("ADCS-E01", 4, 10, new boolean[] {true, true, true}, new String[] {"COMP2000", "COMP2350"});
+		Course.offer("ADCS-E02", 4, 11, new boolean[] {true, true, true}, new String[] {"COMP2000", "COMP2350"});
 		
-		Course.offer(coop1, coopCredits, new boolean[] {true, true, true});
-		Course.offer(coop2, coopCredits, new boolean[] {true, true, true}, new String[] {coop1});
+		Course.offer(coop1, coopCredits, 7, new boolean[] {true, true, true});
+		Course.offer(coop2, coopCredits, 9, new boolean[] {true, true, true}, new String[] {coop1});
 		
 		//
 		
@@ -138,6 +143,8 @@ public class PreReq {
 		final int START_SEMESTER = 0;
 		final int START_YEAR = 2017;
 		
+		final int DEVIATION_FROM_TRACKING = 0;
+		
 		final boolean NO_ALL_CLASS_YEAR = true;
 		
 		final boolean NO_CLASS_WITH_COOP = true;
@@ -146,10 +153,13 @@ public class PreReq {
 		final int COOP_CREDITS = 12;
 		
 		final Set<String> taken = new HashSet<>();
+//		taken.add("COMP1000");
+//		taken.add("COMP1050");
+//		taken.add("MATH2300");
 		
 		final Set<Integer> avoid = new HashSet<>();
-		avoid.add(2);
-		avoid.add(5);
+//		avoid.add(2);
+//		avoid.add(5);
 		
 		final List<String[]> equiv = new ArrayList<>();
 		
@@ -218,8 +228,12 @@ public class PreReq {
 				if (avoid.contains(t)) {
 					store.impose(new LinearInt(store, bvars, credits, "==", 0));
 				} else {
-					store.impose(new LinearInt(store, bvars, credits, "<=", MAX_CREDITS));
-					store.impose(new LinearInt(store, bvars, credits, ">=", MIN_CREDITS));
+					store.impose(
+						new Or(
+							new LinearInt(store, bvars, credits, "==", 0), 
+							new And(new LinearInt(store, bvars, credits, ">=", MIN_CREDITS), new LinearInt(store, bvars, credits, "<=", MAX_CREDITS))
+						)
+					);
 				}
 			}
 		}
@@ -252,7 +266,24 @@ public class PreReq {
 			// impose (not (fall AND spring AND summer))
 		}
 		
-		//
+		// deviation from tracking sheet
+		final IntVar cost = new IntVar(store, "cost", 0, MAX_SEMESTERS * Course.OFFERINGS.size());
+		{
+			final int offsetEstimate = (int) Math.round(taken.stream().mapToInt(c -> Course.OFFERINGS.get(c).credits).sum() / 12.0);
+			final IntVar[] diffVars = new IntVar[Course.OFFERINGS.size()];
+			int i=0;
+			for (Course c : Course.OFFERINGS.values()) {
+				final int courseEstimate = c.slot - offsetEstimate;
+				final IntVar exp = new IntVar(store, String.format("%s-expected", c.name), courseEstimate, courseEstimate);
+				final IntVar diff = new IntVar(store, String.format("%s-diff", c.name), 0, MAX_SEMESTERS);
+				store.impose(new Distance(exp, varMap.get(c.name), diff));
+				
+				diffVars[i++] = diff;
+			}
+			
+			store.impose(new SumInt(store, diffVars, "==", cost));
+			store.impose(new XlteqC(cost, DEVIATION_FROM_TRACKING));
+		}
 		
 		final Search<IntVar> search = new DepthFirstSearch<>();
 		final SelectChoicePoint<IntVar> select = new InputOrderSelect<>(store, vars, new IndomainMin<IntVar>());
@@ -276,7 +307,7 @@ public class PreReq {
 				printSchedule(search, i, START_SEMESTER, START_YEAR, MAX_SEMESTERS);
 				System.out.printf("%n");
 				
-				if (i>=100) {
+				if (i>=10) {
 					System.out.printf("Stopped after %,d/%,d", i, search.getSolutionListener().solutionsNo());
 					if (MAX_TIME != null) {
 						System.out.printf(" (searched for %ds)", MAX_TIME);

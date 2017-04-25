@@ -9,18 +9,20 @@ public class Course {
 	
 	public final String name;
 	public final int credits;
+	public final int slot;
 	public final boolean[] semesters;
 	public final String[] prereqs;
 	
 	private final String myString;
 	
-	private Course(String name, int credits, boolean[] semesters, String[] prereqs) {
+	private Course(String name, int credits, int slot, boolean[] semesters, String[] prereqs) {
 		this.name = name;
 		this.credits = credits;
+		this.slot = slot;
 		this.semesters = Arrays.copyOf(semesters, semesters.length);
 		this.prereqs = Arrays.copyOf(prereqs, prereqs.length);
 		
-		final StringBuilder sb = new StringBuilder(String.format("%s (%d credits; ", name, credits));
+		final StringBuilder sb = new StringBuilder(String.format("%s (%d credits; slot #%d; ", name, credits, slot));
 		boolean firstSem = true;
 		for (int i=0; i<3; i++) {
 			if (semesters[i]) {
@@ -34,12 +36,12 @@ public class Course {
 		OFFERINGS.put(name, this);
 	}
 	
-	public static void offer(String name, int credits, boolean[] semesters) {
-		new Course(name, credits, semesters, new String[] {});
+	public static void offer(String name, int credits, int slot, boolean[] semesters) {
+		offer(name, credits, slot, semesters, new String[] {});
 	}
 	
-	public static void offer(String name, int credits, boolean[] semesters, String[] prereqs) {
-		new Course(name, credits, semesters, prereqs);
+	public static void offer(String name, int credits, int slot, boolean[] semesters, String[] prereqs) {
+		new Course(name, credits, slot, semesters, prereqs);
 	}
 	
 	public static String semesterName(int s) {
