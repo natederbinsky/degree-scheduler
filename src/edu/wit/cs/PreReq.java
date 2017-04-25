@@ -131,7 +131,7 @@ public class PreReq {
 	
 	public static void main(String[] args) {
 		
-		final Integer MAX_TIME = 1;
+		final Integer MAX_TIME = 5;
 //		final Integer MAX_TIME = null;
 		
 		//
@@ -143,7 +143,7 @@ public class PreReq {
 		final int START_SEMESTER = 0;
 		final int START_YEAR = 2017;
 		
-		final int DEVIATION_FROM_TRACKING = 0;
+		final Integer DEVIATION_FROM_TRACKING = 0;
 		
 		final boolean NO_ALL_CLASS_YEAR = true;
 		
@@ -162,6 +162,9 @@ public class PreReq {
 //		avoid.add(5);
 		
 		final List<String[]> equiv = new ArrayList<>();
+		
+		final Map<Integer, List<String>> peg = new LinkedHashMap<>();
+//		peg.put(2, Arrays.asList("MATH1850"));
 		
 		//
 		
@@ -182,10 +185,22 @@ public class PreReq {
 				if (taken.contains(c.name)) {
 					v.addDom(-1, -1);
 				} else {
+					boolean pegged = false;
 					for (int t=0; t<MAX_SEMESTERS; t++) {
 						final int semester = (START_SEMESTER + t) % 3;
-						if (c.semesters[semester]) {
+						if (peg.containsKey(t) && peg.get(t).contains(c.name) && c.semesters[semester]) {
+							pegged = true;
 							v.addDom(t, t);
+							break;
+						}
+					}
+					
+					if (!pegged) {
+						for (int t=0; t<MAX_SEMESTERS; t++) {
+							final int semester = (START_SEMESTER + t) % 3;
+							if (c.semesters[semester]) {
+								v.addDom(t, t);
+							}
 						}
 					}
 				}
@@ -202,7 +217,9 @@ public class PreReq {
 		// prereq
 		for (Course c : Course.OFFERINGS.values()) {
 			for (String pre : c.prereqs) {
-				store.impose(new XltY(varMap.get(pre), varMap.get(c.name)));
+				if (!taken.contains(pre)) {
+					store.impose(new XltY(varMap.get(pre), varMap.get(c.name)));
+				}
 			}
 		}
 		
@@ -226,7 +243,7 @@ public class PreReq {
 				}
 				
 				if (avoid.contains(t)) {
-					store.impose(new LinearInt(store, bvars, credits, "==", 0));
+					store.impose(new LinearInt(store, bvars, credits, "==", peg.containsKey(t)?peg.get(t).stream().mapToInt(c->Course.OFFERINGS.get(c).credits).sum():0));
 				} else {
 					store.impose(
 						new Or(
@@ -282,7 +299,9 @@ public class PreReq {
 			}
 			
 			store.impose(new SumInt(store, diffVars, "==", cost));
-			store.impose(new XlteqC(cost, DEVIATION_FROM_TRACKING));
+			if (DEVIATION_FROM_TRACKING != null) {
+				store.impose(new XlteqC(cost, DEVIATION_FROM_TRACKING));
+			}
 		}
 		
 		final Search<IntVar> search = new DepthFirstSearch<>();
