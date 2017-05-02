@@ -11,14 +11,15 @@ import java.util.TreeMap;
 
 import org.jacop.constraints.And;
 import org.jacop.constraints.Distance;
+import org.jacop.constraints.IfThen;
 import org.jacop.constraints.LinearInt;
 import org.jacop.constraints.Or;
 import org.jacop.constraints.OrBool;
-import org.jacop.constraints.PrimitiveConstraint;
 import org.jacop.constraints.Reified;
 import org.jacop.constraints.SumInt;
 import org.jacop.constraints.XeqC;
 import org.jacop.constraints.XeqY;
+import org.jacop.constraints.XltC;
 import org.jacop.constraints.XltY;
 import org.jacop.constraints.XlteqY;
 import org.jacop.core.BooleanVar;
@@ -81,7 +82,7 @@ public class PreReq {
 	private static List<Map<String, Integer>> buildSchedules(ProgramLoader pl, int startSemester, int startYear, int maxSemesters,
 																int minCredits, int maxCredits, int maxCreditsWithCoOp,
 																Integer deviationFromTracking, boolean noAllClassYear, 
-																Set<String> classesTaken, Set<Integer> avoidSemesters,
+																Set<String> classesTaken, int creditsTakenOther, Set<Integer> avoidSemesters,
 																Map<Integer, List<String>> classReservations,
 																Integer maxSolverTime, Integer maxSolutions) {
 		
@@ -123,10 +124,8 @@ public class PreReq {
 				// class -?> semester
 				final IntVar[] vars = new IntVar[maxSemesters+1];
 				for (int t=0; t<maxSemesters; t++) {
-					final PrimitiveConstraint pc = new XeqC(v, t);
 					final BooleanVar b = new BooleanVar(store, String.format("%s=%d", c.name, t));
-					final Reified r = new Reified(pc, b);
-					store.impose(r);
+					store.impose(new Reified(new XeqC(v, t), b));
 					
 					vars[t] = b;
 				}
@@ -234,8 +233,8 @@ public class PreReq {
 						new Or(
 							new And(
 								new And(
-									new XeqY(varMap.get(Course.COOP1)[t], bF),
-									new XeqY(varMap.get(Course.COOP2)[t], bF)
+									new XeqY(varMap.get(Course.COOP_NAME[0])[t], bF),
+									new XeqY(varMap.get(Course.COOP_NAME[1])[t], bF)
 								),
 								new Or(
 									new LinearInt(store, bvars, credits, "==", creditReservations[t]), 
@@ -244,14 +243,46 @@ public class PreReq {
 							),
 							new And(
 								new Or(
-									new XeqY(varMap.get(Course.COOP1)[t], bT),
-									new XeqY(varMap.get(Course.COOP2)[t], bT)
+									new XeqY(varMap.get(Course.COOP_NAME[0])[t], bT),
+									new XeqY(varMap.get(Course.COOP_NAME[1])[t], bT)
 								),
 								new And(new LinearInt(store, bvars, credits, ">=", 0), new LinearInt(store, bvars, credits, "<=", maxCreditsWithCoOp))
 							)
 						)
 					);
 				}
+			}
+		}
+		
+		// Hours for co-op
+		//  for each semester t, sum_{credits in semesters < t) >= requirement
+		for (int t=0; t<maxSemesters; t++) {
+			// # credits per class
+			final int[] credits = new int[Course.OFFERINGS.size()];
+			
+			// v<t
+			final BooleanVar[] bvars = new BooleanVar[Course.OFFERINGS.size()];
+			
+			int i = 0;
+			for (Course c : Course.OFFERINGS.values()) {
+				credits[i] = c.credits;
+				
+				final BooleanVar b = new BooleanVar(store);
+				store.impose(new Reified(
+					new XltC(varMap.get(c.name)[maxSemesters], t),
+				b));
+				bvars[i] = b;
+				
+				i++;
+			}
+			
+			for (i=0; i<Course.COOP_PREREQ.length; i++) {
+				store.impose(
+					new IfThen(
+						new XeqY(varMap.get(Course.COOP_NAME[i])[t], bT),
+						new LinearInt(store, bvars, credits, ">=", Course.COOP_PREREQ[i]-creditsTakenOther)
+					)
+				);
 			}
 		}
 		
@@ -282,7 +313,7 @@ public class PreReq {
 						final BooleanVar[] cSem = new BooleanVar[numNonReserved];
 						
 						// indication of if co-op is during this semester
-						final IntVar[] coopSem = {varMap.get(Course.COOP1)[s], varMap.get(Course.COOP2)[s]};
+						final IntVar[] coopSem = {varMap.get(Course.COOP_NAME[0])[s], varMap.get(Course.COOP_NAME[1])[s]};
 						
 						int j = 0;
 						for (Course c : Course.OFFERINGS.values()) {
@@ -293,7 +324,7 @@ public class PreReq {
 						
 						//
 						
-						final BooleanVar b = new BooleanVar(store, String.format("ACY_%d_legal", s));
+						final BooleanVar b = new BooleanVar(store);
 						store.impose(new Reified(
 							new Or( // either...
 								new OrBool(coopSem, bT), // co-op 
@@ -399,7 +430,7 @@ public class PreReq {
 		final int MAX_CREDITS = 16; //  per semester
 		final int MAX_CREDITS_COOP  = 0; // per semester with co-op
 		
-		final Integer DEVIATION_FROM_TRACKING = 0; // allowed changes from course slot
+		final Integer DEVIATION_FROM_TRACKING = 100; // allowed changes from course slot
 		
 		final boolean NO_ALL_CLASS_YEAR = true; // three semesters of class in the same academic year (fall-summer)
 		
@@ -410,6 +441,8 @@ public class PreReq {
 //		taken.add("COMP1050");
 //		taken.add("MATH2300");
 		
+		final int CREDITS_TAKEN_OTHER = 0;
+		
 		final Set<Integer> avoid = new HashSet<>(); // semesters to avoid
 //		avoid.add(2);
 //		avoid.add(5);
@@ -418,7 +451,7 @@ public class PreReq {
 //		peg.put(2, Arrays.asList("MATH1850"));
 		
 		final Integer MAX_TIME = 1; // solver timeout (null for no limit)
-		final Integer MAX_SOLUTIONS = 10; // maximum solutions to return (null for no limit)
+		final Integer MAX_SOLUTIONS = 1; // maximum solutions to return (null for no limit)
 		
 		////////////////////////////////////////////////////////////////////////////////////////////////////////
 		////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -427,7 +460,7 @@ public class PreReq {
 			PROGRAM, START_SEMESTER, START_YEAR, MAX_SEMESTERS, 
 			MIN_CREDITS, MAX_CREDITS, MAX_CREDITS_COOP, 
 			DEVIATION_FROM_TRACKING, NO_ALL_CLASS_YEAR, 
-			taken, avoid, peg, 
+			taken, CREDITS_TAKEN_OTHER, avoid, peg, 
 			MAX_TIME, MAX_SOLUTIONS
 		);
 

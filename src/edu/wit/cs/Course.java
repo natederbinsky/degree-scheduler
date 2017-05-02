@@ -6,11 +6,8 @@ import java.util.TreeMap;
 
 public class Course {
 	
-	public static final String COOP1 = "COOP-3500";
-	public static final int COOP1_PREREQ = 64;
-	
-	public static final String COOP2 = "COOP-4500";
-	public static final int COOP2_PREREQ = 96;
+	public static final String[] COOP_NAME = {"COOP-3500", "COOP-4500"};
+	public static final int[] COOP_PREREQ = {64, 96};
 	
 	//
 	
@@ -60,8 +57,8 @@ public class Course {
 	}
 	
 	public static void offerCoop(int slot1, int slot2) {
-		offer(COOP1, 0, slot1, new boolean[] {true, true, true});
-		offer(COOP2, 0, slot2, new boolean[] {true, true, true}, new String[] {COOP1});
+		offer(COOP_NAME[0], 0, slot1, new boolean[] {true, true, true});
+		offer(COOP_NAME[1], 0, slot2, new boolean[] {true, true, true}, new String[] {COOP_NAME[0]});
 	}
 	
 	public static String semesterName(int s) {
