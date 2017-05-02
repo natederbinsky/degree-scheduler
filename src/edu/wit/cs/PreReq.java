@@ -14,7 +14,7 @@ import org.jacop.constraints.Distance;
 import org.jacop.constraints.IfThen;
 import org.jacop.constraints.LinearInt;
 import org.jacop.constraints.Or;
-import org.jacop.constraints.OrBool;
+import org.jacop.constraints.PrimitiveConstraint;
 import org.jacop.constraints.Reified;
 import org.jacop.constraints.SumInt;
 import org.jacop.constraints.XeqC;
@@ -22,6 +22,7 @@ import org.jacop.constraints.XeqY;
 import org.jacop.constraints.XltC;
 import org.jacop.constraints.XltY;
 import org.jacop.constraints.XlteqY;
+import org.jacop.constraints.XneqY;
 import org.jacop.core.BooleanVar;
 import org.jacop.core.BoundDomain;
 import org.jacop.core.Domain;
@@ -99,7 +100,6 @@ public class PreReq {
 		final Store store = new Store();
 		
 		final IntVar bT = new BooleanVar(store, new BoundDomain(1, 1));
-		final IntVar bF = new BooleanVar(store, new BoundDomain(0, 0));
 		
 		////////////////////////////////////////////////////////////////////////////////////////////////////////
 		// 3. Create search variables, each with domains; organize via useful indexes
@@ -233,8 +233,8 @@ public class PreReq {
 						new Or(
 							new And(
 								new And(
-									new XeqY(varMap.get(Course.COOP_NAME[0])[t], bF),
-									new XeqY(varMap.get(Course.COOP_NAME[1])[t], bF)
+									new XneqY(varMap.get(Course.COOP_NAME[0])[t], bT),
+									new XneqY(varMap.get(Course.COOP_NAME[1])[t], bT)
 								),
 								new Or(
 									new LinearInt(store, bvars, credits, "==", creditReservations[t]), 
@@ -294,7 +294,7 @@ public class PreReq {
 				
 				// if fall and the whole academic year fits
 				if (semester==0 && (t+2)<maxSemesters) {
-					final BooleanVar[] legalVar = new BooleanVar[3];
+					final PrimitiveConstraint[] legalVar = new PrimitiveConstraint[3];
 					
 					// loop over the semesters of
 					// this academic year
@@ -310,34 +310,31 @@ public class PreReq {
 						final int numNonReserved = Course.OFFERINGS.size() - (semesterReservations==null?0:semesterReservations.size());
 						
 						// indication of if any non-reserved classes are assigned to this semester
-						final BooleanVar[] cSem = new BooleanVar[numNonReserved];
+						final PrimitiveConstraint[] cSem = new PrimitiveConstraint[numNonReserved-2];
 						
 						// indication of if co-op is during this semester
-						final IntVar[] coopSem = {varMap.get(Course.COOP_NAME[0])[s], varMap.get(Course.COOP_NAME[1])[s]};
+						final PrimitiveConstraint coopSem = new Or(
+							new XeqY(varMap.get(Course.COOP_NAME[0])[s], bT), 
+							new XeqY(varMap.get(Course.COOP_NAME[1])[s], bT)
+						);
 						
 						int j = 0;
 						for (Course c : Course.OFFERINGS.values()) {
-							if (semesterReservations==null || !semesterReservations.contains(c.name)) {
-								cSem[j++] = (BooleanVar) varMap.get(c.name)[s];
+							if ((semesterReservations==null || !semesterReservations.contains(c.name)) && 
+									!c.name.equals(Course.COOP_NAME[0]) && !c.name.equals(Course.COOP_NAME[1])) {
+								cSem[j++] = new XneqY(varMap.get(c.name)[s], bT);
 							}
 						}
 						
 						//
 						
-						final BooleanVar b = new BooleanVar(store);
-						store.impose(new Reified(
-							new Or( // either...
-								new OrBool(coopSem, bT), // co-op 
-								new OrBool(cSem, bF)),  // or no courses
-						b));
-						
-						legalVar[i] = b;
+						legalVar[i] = new Or(coopSem, new And(cSem));
 					}
 					
 					// impose the constraint that at least 
 					// one semester must be "legal" in an 
 					// academic year
-					store.impose(new OrBool(legalVar, bT));
+					store.impose(new Or(legalVar));
 				}
 			}
 		}
@@ -430,7 +427,7 @@ public class PreReq {
 		final int MAX_CREDITS = 16; //  per semester
 		final int MAX_CREDITS_COOP  = 0; // per semester with co-op
 		
-		final Integer DEVIATION_FROM_TRACKING = 100; // allowed changes from course slot
+		final Integer DEVIATION_FROM_TRACKING = 0; // allowed changes from course slot
 		
 		final boolean NO_ALL_CLASS_YEAR = true; // three semesters of class in the same academic year (fall-summer)
 		
@@ -451,7 +448,7 @@ public class PreReq {
 //		peg.put(2, Arrays.asList("MATH1850"));
 		
 		final Integer MAX_TIME = 1; // solver timeout (null for no limit)
-		final Integer MAX_SOLUTIONS = 1; // maximum solutions to return (null for no limit)
+		final Integer MAX_SOLUTIONS = 10; // maximum solutions to return (null for no limit)
 		
 		////////////////////////////////////////////////////////////////////////////////////////////////////////
 		////////////////////////////////////////////////////////////////////////////////////////////////////////
