@@ -5,23 +5,22 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
 import java.util.TreeMap;
 
 import org.jacop.constraints.And;
 import org.jacop.constraints.Distance;
 import org.jacop.constraints.LinearInt;
-import org.jacop.constraints.Not;
 import org.jacop.constraints.Or;
 import org.jacop.constraints.OrBool;
 import org.jacop.constraints.PrimitiveConstraint;
 import org.jacop.constraints.Reified;
 import org.jacop.constraints.SumInt;
 import org.jacop.constraints.XeqC;
+import org.jacop.constraints.XeqY;
 import org.jacop.constraints.XltY;
-import org.jacop.constraints.XlteqC;
 import org.jacop.constraints.XlteqY;
-import org.jacop.constraints.XneqY;
 import org.jacop.core.BooleanVar;
 import org.jacop.core.BoundDomain;
 import org.jacop.core.Domain;
@@ -32,6 +31,8 @@ import org.jacop.search.IndomainMin;
 import org.jacop.search.InputOrderSelect;
 import org.jacop.search.Search;
 import org.jacop.search.SelectChoicePoint;
+
+import edu.wit.cs.Program.ProgramLoader;
 
 public class PreReq {
 	
@@ -50,20 +51,14 @@ public class PreReq {
 		}
 	}
 	
-	private static void printSchedule(Search<IntVar> search, int solNum, int startSemester, int startYear, int numSemesters) {
-		final IntVar[] vars = search.getVariables();
-		final Domain[] vals = search.getSolution(solNum);
-		
+	private static void printSchedule(Map<String, Integer> solution, int startSemester, int startYear, int numSemesters) {
 		final Map<Integer, List<String>> schedule = new LinkedHashMap<>();
 		for (int i=-1; i<numSemesters; i++) {
 			schedule.put(i, new ArrayList<String>());
 		}
 		
-		for (int i=0; i<vars.length; i++) {
-			final IntVar v = vars[i];
-			final int t = Integer.valueOf(vals[i].toString());
-			
-			schedule.get(t).add(v.id);
+		for (Entry<String, Integer> e : solution.entrySet()) {
+			schedule.get(e.getValue()).add(e.getKey());
 		}
 		
 		if (!schedule.get(-1).isEmpty()) {
@@ -72,7 +67,7 @@ public class PreReq {
 		
 		int year = startYear;
 		for (int t=0; t<numSemesters; t++) {
-			final int semester = (startSemester + t) % 3;
+			final int semester = Course.semester(startSemester, t);
 			if (semester == 1) {
 				year++;
 			} else if (semester==0 && t!=0) {
@@ -83,224 +78,216 @@ public class PreReq {
 		}
 	}
 	
-	private static void loadBCOS(String coop1, String coop2, int coopCredits, List<String[]> equiv) {
-		Course.offer("COMP1000", 4, 0, new boolean[] {true, true, false});
-		Course.offer("MATH2300", 4, 0, new boolean[] {true, true, true});
-		Course.offer("MATH1750", 4, 0, new boolean[] {true, true, false});
-		Course.offer("COMP1050", 4, 1, new boolean[] {true, true, false}, new String[] {"COMP1000"});
-		Course.offer("MATH1850", 4, 1, new boolean[] {true, true, true}, new String[] {"MATH1750"});
-		Course.offer("COMP1200", 4, 1, new boolean[] {true, true, false}, new String[] {"COMP1000", "MATH2300"});
-		Course.offer("COMP2000", 4, 3, new boolean[] {true, true, false}, new String[] {"COMP1050", "MATH2300"});
-		Course.offer("COMP2100", 4, 3, new boolean[] {true, true, false}, new String[] {"COMP1050"});
-		Course.offer("MATH2860", 4, 3, new boolean[] {true, true, false}, new String[] {"MATH1850"});
-		Course.offer("COMP2350", 4, 4, new boolean[] {true, true, false}, new String[] {"COMP1050", "MATH2300"});
-		Course.offer("COMP2650", 4, 4, new boolean[] {true, true, false}, new String[] {"COMP1050", "MATH2300"});
-		Course.offer("MATH2100", 4, 4, new boolean[] {false, true, true}, new String[] {"MATH1850"});
-		Course.offer("COMP3400", 4, 6, new boolean[] {true, false, false}, new String[] {"COMP2000", "COMP2350"});
-		Course.offer("COMP3350", 4, 8, new boolean[] {false, false, true}, new String[] {"COMP2000", "COMP2350"});
-		Course.offer("COMP3450", 4, 8, new boolean[] {false, false, true}, new String[] {"COMP2000", "COMP2350"});
-		Course.offer("COMP4960", 4, 10, new boolean[] {false, true, false}, new String[] {"COMP2650", "COMP2000", "COMP2350"});
-		Course.offer("COMP5500", 4, 11, new boolean[] {false, false, true}, new String[] {"COMP4960"});
+	private static List<Map<String, Integer>> buildSchedules(ProgramLoader pl, int startSemester, int startYear, int maxSemesters,
+																int minCredits, int maxCredits, int maxCreditsWithCoOp,
+																Integer deviationFromTracking, boolean noAllClassYear, 
+																Set<String> classesTaken, Set<Integer> avoidSemesters,
+																Map<Integer, List<String>> classReservations,
+																Integer maxSolverTime, Integer maxSolutions) {
 		
-		Course.offer("ENGLISH1", 4, 0, new boolean[] {true, true, true});
-		Course.offer("ENGLISH2", 4, 1, new boolean[] {true, true, true}, new String[] {"ENGLISH1"});
-		Course.offer("HUSS-E01", 4, 3, new boolean[] {true, true, true}, new String[] {"ENGLISH2"});
-		Course.offer("HUSS-E02", 4, 4, new boolean[] {true, true, true}, new String[] {"ENGLISH2"});
-		Course.offer("HUSS-E03", 4, 6, new boolean[] {true, true, true}, new String[] {"ENGLISH2"});
-		Course.offer("HUSS-E04", 4, 10, new boolean[] {true, true, true}, new String[] {"ENGLISH2"});
-		Course.offer("HUSS-E05", 4, 11, new boolean[] {true, true, true}, new String[] {"ENGLISH2"});
+		////////////////////////////////////////////////////////////////////////////////////////////////////////
+		// 1. Load program
+		////////////////////////////////////////////////////////////////////////////////////////////////////////
 		
-		Course.offer("MSCI-E01", 4, 6, new boolean[] {true, true, true}, new String[] {"MATH1850"});
-		Course.offer("MSCI-E02", 4, 8, new boolean[] {true, true, true}, new String[] {"MATH1850"});
-		Course.offer("MSCI-E03", 4, 11, new boolean[] {true, true, true}, new String[] {"MATH1850"});
+		final Iterable<String[]> equiv = pl.get(); // load courses, get equivalencies
 		
-		Course.offer("COMP-E01", 4, 6, new boolean[] {true, true, true}, new String[] {"COMP1050"});
-		Course.offer("COMP-E02", 4, 8, new boolean[] {true, true, true}, new String[] {"COMP1050"});
-		Course.offer("COMP-E03", 4, 10, new boolean[] {true, true, true}, new String[] {"COMP1050"});
-		
-		Course.offer("ADCS-E01", 4, 10, new boolean[] {true, true, true}, new String[] {"COMP2000", "COMP2350"});
-		Course.offer("ADCS-E02", 4, 11, new boolean[] {true, true, true}, new String[] {"COMP2000", "COMP2350"});
-		
-		Course.offer(coop1, coopCredits, 7, new boolean[] {true, true, true});
-		Course.offer(coop2, coopCredits, 9, new boolean[] {true, true, true}, new String[] {coop1});
-		
-		//
-		
-		equiv.add(new String[] {"HUSS-E01", "HUSS-E02", "HUSS-E03", "HUSS-E04", "HUSS-E05"});
-		equiv.add(new String[] {"MSCI-E01", "MSCI-E02", "MSCI-E03"});
-		equiv.add(new String[] {"COMP-E01", "COMP-E02", "COMP-E03"});
-		equiv.add(new String[] {"ADCS-E01", "ADCS-E02"});
-	}
-	
-	public static void main(String[] args) {
-		
-		final Integer MAX_TIME = 1;
-//		final Integer MAX_TIME = null;
-		
-		//
-		
-		final int MAX_SEMESTERS = 12;
-		final int MIN_CREDITS = 12;
-		final int MAX_CREDITS = 16;
-		
-		final int START_SEMESTER = 0;
-		final int START_YEAR = 2017;
-		
-		final Integer DEVIATION_FROM_TRACKING = 0;
-		
-		final boolean NO_ALL_CLASS_YEAR = true;
-		
-		final boolean NO_CLASS_WITH_COOP = true;
-		final String COOP_1 = "COOP-3500";
-		final String COOP_2 = "COOP-4500";
-		final int COOP_CREDITS = 12;
-		
-		final Set<String> taken = new HashSet<>();
-//		taken.add("COMP1000");
-//		taken.add("COMP1050");
-//		taken.add("MATH2300");
-		
-		final Set<Integer> avoid = new HashSet<>();
-//		avoid.add(2);
-//		avoid.add(5);
-		
-		final List<String[]> equiv = new ArrayList<>();
-		
-		final Map<Integer, List<String>> peg = new LinkedHashMap<>();
-//		peg.put(2, Arrays.asList("MATH1850"));
-		
-		//
-		
-		loadBCOS(COOP_1, COOP_2, COOP_CREDITS, equiv);
-
-		//
+		////////////////////////////////////////////////////////////////////////////////////////////////////////
+		// 2. Create CSP; some useful constants
+		////////////////////////////////////////////////////////////////////////////////////////////////////////
 		
 		final Store store = new Store();
 		
-		//
+		final IntVar bT = new BooleanVar(store, new BoundDomain(1, 1));
+		final IntVar bF = new BooleanVar(store, new BoundDomain(0, 0));
 		
-		final IntVar[] vars = new IntVar[Course.OFFERINGS.size()];
+		////////////////////////////////////////////////////////////////////////////////////////////////////////
+		// 3. Create search variables, each with domains; organize via useful indexes
+		////////////////////////////////////////////////////////////////////////////////////////////////////////
+		
+		// list of search variables
+		final IntVar[] searchVars = new IntVar[Course.OFFERINGS.size()];
+		
+		// by class name: 0=sem_1?, 1=sem_2?, ... (maxt-1)=sem_{maxt-1}?, maxt=value
+		final Map<String, IntVar[]> varMap = new TreeMap<>();
+		final int[] creditReservations = new int[maxSemesters];
+		
+		// create variables with domains (w.r.t offering, reservations) -> searchVars
+		// create reified boolean equivalencies per semester -> varMap
 		{
 			int i = 0;
 			for (Course c : Course.OFFERINGS.values()) {
+				// semester assignment variable
 				final IntVar v = new IntVar(store, c.name);
+				searchVars[i++] = v;
 				
-				if (taken.contains(c.name)) {
-					v.addDom(-1, -1);
+				// class -?> semester
+				final IntVar[] vars = new IntVar[maxSemesters+1];
+				for (int t=0; t<maxSemesters; t++) {
+					final PrimitiveConstraint pc = new XeqC(v, t);
+					final BooleanVar b = new BooleanVar(store, String.format("%s=%d", c.name, t));
+					final Reified r = new Reified(pc, b);
+					store.impose(r);
+					
+					vars[t] = b;
+				}
+				vars[maxSemesters] = v;
+				varMap.put(c.name, vars);
+				
+				// domain
+				if (classesTaken.contains(c.name)) {
+					v.addDom(-1, -1); // taken courses get -1
 				} else {
-					boolean pegged = false;
-					for (int t=0; t<MAX_SEMESTERS; t++) {
-						final int semester = (START_SEMESTER + t) % 3;
-						if (peg.containsKey(t) && peg.get(t).contains(c.name) && c.semesters[semester]) {
-							pegged = true;
+					boolean reserved = false;
+					for (int t=0; t<maxSemesters; t++) {
+						final int semester = Course.semester(startSemester, t);
+						
+						// if a course is reserved
+						// assign it to the first
+						// semester in which it
+						// is offered
+						if (classReservations.containsKey(t) && classReservations.get(t).contains(c.name) && c.semesters[semester]) {
+							reserved = true;
+							creditReservations[t] += c.credits;
 							v.addDom(t, t);
 							break;
 						}
 					}
 					
-					if (!pegged) {
-						for (int t=0; t<MAX_SEMESTERS; t++) {
-							final int semester = (START_SEMESTER + t) % 3;
+					// if not reserved, domain = any offered semester
+					if (!reserved) {
+						for (int t=0; t<maxSemesters; t++) {
+							final int semester = Course.semester(startSemester, t);
+							
 							if (c.semesters[semester]) {
 								v.addDom(t, t);
 							}
 						}
 					}
 				}
-				
-				vars[i++] = v;
 			}
 		}
-			
-		final Map<String, IntVar> varMap = new TreeMap<>();
-		for (IntVar v : vars) {
-			varMap.put(v.id(), v);
+		
+		////////////////////////////////////////////////////////////////////////////////////////////////////////
+		// 4. Create constraints!
+		////////////////////////////////////////////////////////////////////////////////////////////////////////
+		
+		// Course equivalencies (via partial ordering)
+		//  if
+		//    class A_i is equivalent to class A_j, and i<j
+		//  then
+		//    A_i <= A_j
+		for (String[] e : equiv) {
+			for (int i=0; i<e.length-1; i++) {
+				store.impose(new XlteqY(varMap.get(e[i])[maxSemesters], varMap.get(e[i+1])[maxSemesters]));
+			}
 		}
 		
-		// prereq
+		// Prerequisites
+		//  if 
+		//    class A is a prerequisite for class B, and A hasn't been taken
+		//  then
+		//   A < B
 		for (Course c : Course.OFFERINGS.values()) {
 			for (String pre : c.prereqs) {
-				if (!taken.contains(pre)) {
-					store.impose(new XltY(varMap.get(pre), varMap.get(c.name)));
+				if (!classesTaken.contains(pre)) {
+					store.impose(new XltY(varMap.get(pre)[maxSemesters], varMap.get(c.name)[maxSemesters]));
 				}
 			}
 		}
 		
-		// hours
+		// Corequisites
+		//  if 
+		//    class A is a corequisite for class B
+		//  then
+		//   A <= B
+		for (Course c : Course.OFFERINGS.values()) {
+			for (String co : c.coreqs) {
+				store.impose(new XlteqY(varMap.get(co)[maxSemesters], varMap.get(c.name)[maxSemesters]));
+			}
+		}
+		
+		
+		// Total hours per semester...
+		//  if avoid: [reserved, reserved]
+		//  else: (!COOP AND ([reserved, reserved] OR [minCredits, maxCredits])) OR (COOP AND [0, maxCoOpCredits])
 		{
+			// # credits per class
 			final int[] credits = new int[Course.OFFERINGS.size()];
 			int i = 0;
 			for (Course c : Course.OFFERINGS.values()) {
 				credits[i++] = c.credits;
 			}
 			
-			for (int t=0; t<MAX_SEMESTERS; t++) {
+			// for each semester
+			for (int t=0; t<maxSemesters; t++) {
+				// t/f: whether a class is assigned to a semester
 				final BooleanVar[] bvars = new BooleanVar[Course.OFFERINGS.size()];
 				i = 0;
 				for (Course c : Course.OFFERINGS.values()) {
-					final PrimitiveConstraint pc = new XeqC(varMap.get(c.name), t);
-					final BooleanVar b = new BooleanVar(store, String.format("%s=%d", c.name, t));
-					final Reified r = new Reified(pc, b);
-					store.impose(r);
-					bvars[i++] = b;
+					bvars[i++] = (BooleanVar) varMap.get(c.name)[t];
 				}
 				
-				if (avoid.contains(t)) {
-					store.impose(new LinearInt(store, bvars, credits, "==", peg.containsKey(t)?peg.get(t).stream().mapToInt(c->Course.OFFERINGS.get(c).credits).sum():0));
+				if (avoidSemesters.contains(t)) {
+					store.impose(new LinearInt(store, bvars, credits, "==", creditReservations[t]));
 				} else {
 					store.impose(
 						new Or(
-							new LinearInt(store, bvars, credits, "==", 0), 
-							new And(new LinearInt(store, bvars, credits, ">=", MIN_CREDITS), new LinearInt(store, bvars, credits, "<=", MAX_CREDITS))
+							new And(
+								new And(
+									new XeqY(varMap.get(Course.COOP1)[t], bF),
+									new XeqY(varMap.get(Course.COOP2)[t], bF)
+								),
+								new Or(
+									new LinearInt(store, bvars, credits, "==", creditReservations[t]), 
+									new And(new LinearInt(store, bvars, credits, ">=", minCredits), new LinearInt(store, bvars, credits, "<=", maxCredits))
+								)
+							),
+							new And(
+								new Or(
+									new XeqY(varMap.get(Course.COOP1)[t], bT),
+									new XeqY(varMap.get(Course.COOP2)[t], bT)
+								),
+								new And(new LinearInt(store, bvars, credits, ">=", 0), new LinearInt(store, bvars, credits, "<=", maxCreditsWithCoOp))
+							)
 						)
 					);
 				}
 			}
 		}
 		
-		// equivalents
-		for (String[] e : equiv) {
-			for (int i=0; i<e.length-1; i++) {
-				store.impose(new XlteqY(varMap.get(e[i]), varMap.get(e[i+1])));
-			}
-		}
-		
-		// no class with coop
-		if (NO_CLASS_WITH_COOP) {
-			final IntVar v1 = varMap.get(COOP_1);
-			final IntVar v2 = varMap.get(COOP_2);
-			
-			for (IntVar v : vars) {
-				if (v != v1 && v != v2) {
-					store.impose(new XneqY(v, v1));
-					store.impose(new XneqY(v, v2));
-				}
-			}
-		}
-		
-		// no class all year
-		if (NO_ALL_CLASS_YEAR) {
-			final BooleanVar bT = new BooleanVar(store, new BoundDomain(1, 1));
-			
-			for (int t=0; t<MAX_SEMESTERS; t++) {
-				final int semester = (START_SEMESTER + t) % 3;
+		// No all-class-semester years (other than those reserved)
+		if (noAllClassYear) {
+			for (int t=0; t<maxSemesters; t++) {
+				// representing a non-course semester
+				final int semester = Course.semester(startSemester, t);
 				
-				if (semester==0 && (t+2)<MAX_SEMESTERS) {
+				// if fall and the whole academic year fits
+				if (semester==0 && (t+2)<maxSemesters) {
 					final BooleanVar[] legalVar = new BooleanVar[3];
 					
+					// loop over the semesters of
+					// this academic year
 					for (int i=0; i<3; i++) {
+						// convenience variable for semester
+						// in this academic year
 						final int s = t + i;
 						
-						//
+						// reserved classes in this semester (if any)
+						final List<String> semesterReservations = classReservations.containsKey(s)?classReservations.get(s):null;
 						
-						final List<String> pegs = peg.containsKey(s)?peg.get(s):null;
+						// classes not reserved for this semester
+						final int numNonReserved = Course.OFFERINGS.size() - (semesterReservations==null?0:semesterReservations.size());
 						
-						final int numNonPegged = Course.OFFERINGS.size() - (pegs==null?0:pegs.size());
-						final PrimitiveConstraint[] cSem = new PrimitiveConstraint[numNonPegged];
+						// indication of if any non-reserved classes are assigned to this semester
+						final BooleanVar[] cSem = new BooleanVar[numNonReserved];
+						
+						// indication of if co-op is during this semester
+						final IntVar[] coopSem = {varMap.get(Course.COOP1)[s], varMap.get(Course.COOP2)[s]};
+						
 						int j = 0;
 						for (Course c : Course.OFFERINGS.values()) {
-							if (pegs==null || !pegs.contains(c.name)) {
-								cSem[j++] = new XeqC(varMap.get(c.name), s);
+							if (semesterReservations==null || !semesterReservations.contains(c.name)) {
+								cSem[j++] = (BooleanVar) varMap.get(c.name)[s];
 							}
 						}
 						
@@ -309,41 +296,59 @@ public class PreReq {
 						final BooleanVar b = new BooleanVar(store, String.format("ACY_%d_legal", s));
 						store.impose(new Reified(
 							new Or( // either...
-								new Or(new XeqC(varMap.get(COOP_1), s), new XeqC(varMap.get(COOP_2), s)), // co-op 
-								new Not(new Or(cSem))),  // or no courses
+								new OrBool(coopSem, bT), // co-op 
+								new OrBool(cSem, bF)),  // or no courses
 						b));
 						
 						legalVar[i] = b;
 					}
 					
+					// impose the constraint that at least 
+					// one semester must be "legal" in an 
+					// academic year
 					store.impose(new OrBool(legalVar, bT));
 				}
 			}
 		}
 		
-		// deviation from tracking sheet
-		final IntVar cost = new IntVar(store, "cost", 0, MAX_SEMESTERS * Course.OFFERINGS.size());
-		{
-			final int offsetEstimate = (int) Math.round(taken.stream().mapToInt(c -> Course.OFFERINGS.get(c).credits).sum() / 12.0);
+		// Deviation from tracking sheet
+		if (deviationFromTracking != null) {			
+			// if not the beginning of the degree,
+			// approximate semesters via number
+			// of credits taken divide by minimum
+			// per semester
+			final int offsetEstimate = (int) Math.round(classesTaken.stream().mapToInt(c -> Course.OFFERINGS.get(c).credits).sum() * 1.0 / minCredits);
+			
+			// cost will be the sum of differences of
+			// expected assignments (via course "slot"
+			// and offset estimate) and actual
+			final IntVar cost = new IntVar(store, "cost", 0, deviationFromTracking);
 			final IntVar[] diffVars = new IntVar[Course.OFFERINGS.size()];
+			
 			int i=0;
 			for (Course c : Course.OFFERINGS.values()) {
-				final int courseEstimate = c.slot - offsetEstimate;
-				final IntVar exp = new IntVar(store, String.format("%s-expected", c.name), courseEstimate, courseEstimate);
-				final IntVar diff = new IntVar(store, String.format("%s-diff", c.name), 0, MAX_SEMESTERS);
-				store.impose(new Distance(exp, varMap.get(c.name), diff));
+				final int classEstimate;
+				if (classesTaken.contains(c.name)) {
+					classEstimate = -1;
+				} else {
+					classEstimate = c.slot - offsetEstimate;
+				}
+				final IntVar exp = new IntVar(store, String.format("%s-expected", c.name), classEstimate, classEstimate);
+				final IntVar diff = new IntVar(store, String.format("%s-diff", c.name), 0, maxSemesters);
+				store.impose(new Distance(exp, varMap.get(c.name)[maxSemesters], diff));
 				
 				diffVars[i++] = diff;
 			}
 			
 			store.impose(new SumInt(store, diffVars, "==", cost));
-			if (DEVIATION_FROM_TRACKING != null) {
-				store.impose(new XlteqC(cost, DEVIATION_FROM_TRACKING));
-			}
 		}
 		
+		////////////////////////////////////////////////////////////////////////////////////////////////////////
+		// 5. Search!
+		////////////////////////////////////////////////////////////////////////////////////////////////////////
+		
 		final Search<IntVar> search = new DepthFirstSearch<>();
-		final SelectChoicePoint<IntVar> select = new InputOrderSelect<>(store, vars, new IndomainMin<IntVar>());
+		final SelectChoicePoint<IntVar> select = new InputOrderSelect<>(store, searchVars, new IndomainMin<IntVar>());
 		
 		search.setPrintInfo(false);
 		search.getSolutionListener().searchAll(true);
@@ -352,26 +357,90 @@ public class PreReq {
 		search.setStore(store);
 		search.setSelectChoicePoint(select);
 		
-		if (MAX_TIME != null) {
-			search.setTimeOut(MAX_TIME);
+		if (maxSolverTime != null) {
+			search.setTimeOut(maxSolverTime);
 		}
 		
-		final boolean found = search.labeling();
+		search.labeling();
 		
-		if (found) {
+		////////////////////////////////////////////////////////////////////////////////////////////////////////
+		// 6. Return results
+		////////////////////////////////////////////////////////////////////////////////////////////////////////
+		
+		final List<Map<String, Integer>> solutions = new ArrayList<>();
+		{
+			final IntVar[] vars = search.getVariables();
+			
 			for (int i=1; i<=search.getSolutionListener().solutionsNo(); i++) {
+				if (maxSolutions != null && i > maxSolutions) break;
+				
+				final Map<String, Integer> solution = new LinkedHashMap<>();
+				final Domain[] vals = search.getSolution(i);
+				
+				for (int j=0; j<vars.length; j++) {
+					solution.put(vars[j].id, Integer.valueOf(vals[j].toString()));
+				}
+				
+				solutions.add(solution);				
+			}
+		}	
+		
+		return solutions;
+	}
+	
+	public static void main(String[] args) {
+		
+		final ProgramLoader PROGRAM = Program::BCOS;
+		final int START_SEMESTER = 0; // starting semester is fall=0, spring=1, summer=2
+		final int START_YEAR = 2017; // starting year (for printing purposes)
+		final int MAX_SEMESTERS = 12; // semesters over which to search
+		
+		final int MIN_CREDITS = 12; // per semester
+		final int MAX_CREDITS = 16; //  per semester
+		final int MAX_CREDITS_COOP  = 0; // per semester with co-op
+		
+		final Integer DEVIATION_FROM_TRACKING = 0; // allowed changes from course slot
+		
+		final boolean NO_ALL_CLASS_YEAR = true; // three semesters of class in the same academic year (fall-summer)
+		
+		//
+		
+		final Set<String> taken = new HashSet<>(); // already taken
+//		taken.add("COMP1000");
+//		taken.add("COMP1050");
+//		taken.add("MATH2300");
+		
+		final Set<Integer> avoid = new HashSet<>(); // semesters to avoid
+//		avoid.add(2);
+//		avoid.add(5);
+		
+		final Map<Integer, List<String>> peg = new LinkedHashMap<>(); // fixing courses to individual semesters
+//		peg.put(2, Arrays.asList("MATH1850"));
+		
+		final Integer MAX_TIME = 1; // solver timeout (null for no limit)
+		final Integer MAX_SOLUTIONS = 10; // maximum solutions to return (null for no limit)
+		
+		////////////////////////////////////////////////////////////////////////////////////////////////////////
+		////////////////////////////////////////////////////////////////////////////////////////////////////////
+		
+		final List<Map<String, Integer>> solutions = buildSchedules(
+			PROGRAM, START_SEMESTER, START_YEAR, MAX_SEMESTERS, 
+			MIN_CREDITS, MAX_CREDITS, MAX_CREDITS_COOP, 
+			DEVIATION_FROM_TRACKING, NO_ALL_CLASS_YEAR, 
+			taken, avoid, peg, 
+			MAX_TIME, MAX_SOLUTIONS
+		);
+
+		////////////////////////////////////////////////////////////////////////////////////////////////////////
+		////////////////////////////////////////////////////////////////////////////////////////////////////////
+		
+		if (!solutions.isEmpty()) {
+			for (int i=1; i<=solutions.size(); i++) {
 				System.out.printf("== Schedule %d ==%n", i);
-				printSchedule(search, i, START_SEMESTER, START_YEAR, MAX_SEMESTERS);
+				printSchedule(solutions.get(i-1), START_SEMESTER, START_YEAR, MAX_SEMESTERS);
 				System.out.printf("%n");
 				
-				if (i>=10) {
-					System.out.printf("Stopped after %,d/%,d", i, search.getSolutionListener().solutionsNo());
-					if (MAX_TIME != null) {
-						System.out.printf(" (searched for %ds)", MAX_TIME);
-					}
-					System.out.printf("%n");
-					break;
-				}
+				System.out.printf("Found %,d schedule(s), %s; searched for %ds%n", solutions.size(), MAX_SOLUTIONS==null?"no limit":String.format("limited to %,d", MAX_SOLUTIONS), MAX_TIME);
 			}
 		} else {
 			System.out.println("No satisfying schedules :(");
